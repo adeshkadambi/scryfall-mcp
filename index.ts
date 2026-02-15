@@ -27,6 +27,7 @@ import { parse } from "node:url";
  * 4) random_card         - Get a random card
  * 5) get_rulings         - Retrieve rulings (official text on card interactions) by card ID
  * 6) get_prices          - Get card prices for a specified card ID or exact name
+ * 7) get_collection      - Batch retrieve up to 75 cards by various identifiers
  *
  * Each tool returns data in JSON format as a single text field.
  */
@@ -182,6 +183,31 @@ const GET_PRICES_BY_NAME_TOOL: Tool = {
   }
 };
 
+const GET_COLLECTION_TOOL: Tool = {
+  name: "get_collection",
+  description:
+    "Retrieve a batch of cards by providing multiple identifiers (up to 75). " +
+    "Each identifier can be one of: {id}, {name}, {name, set}, {collector_number, set}, " +
+    "{mtgo_id}, {multiverse_id}, {oracle_id}, or {illustration_id}. " +
+    "Returns found cards and a list of not_found identifiers.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      identifiers: {
+        type: "array",
+        items: {
+          type: "object"
+        },
+        description:
+          "Array of identifier objects. Examples: " +
+          '[{"id": "UUID"}, {"name": "Lightning Bolt"}, {"set": "mrd", "collector_number": "150"}]',
+        maxItems: 75
+      }
+    },
+    required: ["identifiers"]
+  }
+};
+
 // Return our set of tools
 const SCRYFALL_TOOLS = [
   SEARCH_CARDS_TOOL,
@@ -190,7 +216,8 @@ const SCRYFALL_TOOLS = [
   RANDOM_CARD_TOOL,
   GET_RULINGS_TOOL,
   GET_PRICES_BY_ID_TOOL,
-  GET_PRICES_BY_NAME_TOOL
+  GET_PRICES_BY_NAME_TOOL,
+  GET_COLLECTION_TOOL
 ] as const;
 
 // Helper to handle Scryfall responses
@@ -342,6 +369,16 @@ async function handleGetPricesByName(name: string) {
   };
 }
 
+async function handleGetCollection(identifiers: Record<string, unknown>[]) {
+  const url = "https://api.scryfall.com/cards/collection";
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifiers })
+  });
+  return handleScryfallResponse(response);
+}
+
 // A map of sessionId -> { transport, server } for SSE connections
 const transportsBySession = new Map<
   string,
@@ -397,6 +434,12 @@ function createScryfallServer() {
         case "get_prices_by_name": {
           const { name } = args as { name: string };
           return await handleGetPricesByName(name);
+        }
+        case "get_collection": {
+          const { identifiers } = args as {
+            identifiers: Record<string, unknown>[];
+          };
+          return await handleGetCollection(identifiers);
         }
         default:
           return {
