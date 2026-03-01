@@ -220,6 +220,22 @@ const SCRYFALL_TOOLS = [
   GET_COLLECTION_TOOL
 ] as const;
 
+function filterCardFields(card: Record<string, unknown>) {
+  return {
+    name: card.name,
+    mana_cost: card.mana_cost,
+    type_line: card.type_line,
+    oracle_text: card.oracle_text,
+    power: card.power,
+    toughness: card.toughness,
+    color_identity: card.color_identity,
+    game_changer: card.game_changer,
+    legalities: card.legalities
+      ? { commander: (card.legalities as Record<string, string>).commander }
+      : undefined
+  };
+}
+
 // Helper to handle Scryfall responses
 async function handleScryfallResponse(response: Response) {
   if (!response.ok) {
@@ -277,7 +293,12 @@ async function handleSearchCards(query: string) {
 async function handleGetCardById(id: string) {
   const url = `https://api.scryfall.com/cards/${encodeURIComponent(id)}`;
   const response = await fetch(url);
-  return handleScryfallResponse(response);
+  if (!response.ok) return handleScryfallResponse(response);
+  const data = await response.json() as Record<string, unknown>;
+  return {
+    content: [{ type: "text", text: JSON.stringify(filterCardFields(data), null, 2) }],
+    isError: false
+  };
 }
 
 async function handleGetCardByName(name: string) {
@@ -286,7 +307,12 @@ async function handleGetCardByName(name: string) {
     name
   )}`;
   const response = await fetch(url);
-  return handleScryfallResponse(response);
+  if (!response.ok) return handleScryfallResponse(response);
+  const data = await response.json() as Record<string, unknown>;
+  return {
+    content: [{ type: "text", text: JSON.stringify(filterCardFields(data), null, 2) }],
+    isError: false
+  };
 }
 
 async function handleRandomCard() {
@@ -376,7 +402,13 @@ async function handleGetCollection(identifiers: Record<string, unknown>[]) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identifiers })
   });
-  return handleScryfallResponse(response);
+  if (!response.ok) return handleScryfallResponse(response);
+  const data = await response.json() as { data: Record<string, unknown>[]; not_found: unknown[] };
+  const filtered = { data: data.data.map(filterCardFields), not_found: data.not_found };
+  return {
+    content: [{ type: "text", text: JSON.stringify(filtered, null, 2) }],
+    isError: false
+  };
 }
 
 // A map of sessionId -> { transport, server } for SSE connections
