@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  Tool
+  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import fetch, { Response } from "node-fetch";
-import express from "express";
-import yargs from "yargs";
-import { hideBin } from "yargs/helpers";
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { parse } from "node:url";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 
 /**
  * Scryfall API references:
@@ -24,8 +23,7 @@ import { parse } from "node:url";
  * 1) search_cards        - Perform a text query and list matching cards
  * 2) get_card_by_id      - Get a card by Scryfall ID (UUID)
  * 3) get_card_by_name    - Get a card by exact name
- * 4) random_card         - Get a random card
- * 5) get_rulings         - Retrieve rulings (official text on card interactions) by card ID
+ * 4) get_rulings         - Retrieve rulings (official text on card interactions) by card ID
  * 6) get_prices          - Get card prices for a specified card ID or exact name
  * 7) get_collection      - Batch retrieve up to 75 cards by various identifiers
  *
@@ -81,11 +79,11 @@ const SEARCH_CARDS_TOOL: Tool = {
     properties: {
       query: {
         type: "string",
-        description: "A full text query, e.g. 't:goblin pow=2 o:haste'"
-      }
+        description: "A full text query, e.g. 't:goblin pow=2 o:haste'",
+      },
     },
-    required: ["query"]
-  }
+    required: ["query"],
+  },
 };
 
 const GET_CARD_BY_ID_TOOL: Tool = {
@@ -98,11 +96,11 @@ const GET_CARD_BY_ID_TOOL: Tool = {
       id: {
         type: "string",
         description:
-          "The Scryfall UUID, e.g. 'c09c71fb-7acb-4ffb-a47b-8961a0cf4990'"
-      }
+          "The Scryfall UUID, e.g. 'c09c71fb-7acb-4ffb-a47b-8961a0cf4990'",
+      },
     },
-    required: ["id"]
-  }
+    required: ["id"],
+  },
 };
 
 const GET_CARD_BY_NAME_TOOL: Tool = {
@@ -115,22 +113,11 @@ const GET_CARD_BY_NAME_TOOL: Tool = {
     properties: {
       name: {
         type: "string",
-        description: "Exact name of the card, e.g. 'Lightning Bolt'"
-      }
+        description: "Exact name of the card, e.g. 'Lightning Bolt'",
+      },
     },
-    required: ["name"]
-  }
-};
-
-const RANDOM_CARD_TOOL: Tool = {
-  name: "random_card",
-  description:
-    "Retrieve a random Magic card from Scryfall. Returns JSON data for that random card.",
-  inputSchema: {
-    type: "object",
-    properties: {},
-    required: []
-  }
+    required: ["name"],
+  },
 };
 
 const GET_RULINGS_TOOL: Tool = {
@@ -144,11 +131,11 @@ const GET_RULINGS_TOOL: Tool = {
       id: {
         type: "string",
         description:
-          "A Scryfall ID or Oracle ID. Example: 'c09c71fb-7acb-4ffb-a47b-8961a0cf4990'"
-      }
+          "A Scryfall ID or Oracle ID. Example: 'c09c71fb-7acb-4ffb-a47b-8961a0cf4990'",
+      },
     },
-    required: ["id"]
-  }
+    required: ["id"],
+  },
 };
 
 const GET_PRICES_BY_ID_TOOL: Tool = {
@@ -160,11 +147,11 @@ const GET_PRICES_BY_ID_TOOL: Tool = {
     properties: {
       id: {
         type: "string",
-        description: "Scryfall ID of the card"
-      }
+        description: "Scryfall ID of the card",
+      },
     },
-    required: ["id"]
-  }
+    required: ["id"],
+  },
 };
 
 const GET_PRICES_BY_NAME_TOOL: Tool = {
@@ -176,11 +163,11 @@ const GET_PRICES_BY_NAME_TOOL: Tool = {
     properties: {
       name: {
         type: "string",
-        description: "Exact card name"
-      }
+        description: "Exact card name",
+      },
     },
-    required: ["name"]
-  }
+    required: ["name"],
+  },
 };
 
 const GET_COLLECTION_TOOL: Tool = {
@@ -196,16 +183,16 @@ const GET_COLLECTION_TOOL: Tool = {
       identifiers: {
         type: "array",
         items: {
-          type: "object"
+          type: "object",
         },
         description:
           "Array of identifier objects. Examples: " +
           '[{"id": "UUID"}, {"name": "Lightning Bolt"}, {"set": "mrd", "collector_number": "150"}]',
-        maxItems: 75
-      }
+        maxItems: 75,
+      },
     },
-    required: ["identifiers"]
-  }
+    required: ["identifiers"],
+  },
 };
 
 // Return our set of tools
@@ -213,11 +200,10 @@ const SCRYFALL_TOOLS = [
   SEARCH_CARDS_TOOL,
   GET_CARD_BY_ID_TOOL,
   GET_CARD_BY_NAME_TOOL,
-  RANDOM_CARD_TOOL,
   GET_RULINGS_TOOL,
   GET_PRICES_BY_ID_TOOL,
   GET_PRICES_BY_NAME_TOOL,
-  GET_COLLECTION_TOOL
+  GET_COLLECTION_TOOL,
 ] as const;
 
 function filterCardFields(card: Record<string, unknown>) {
@@ -232,7 +218,7 @@ function filterCardFields(card: Record<string, unknown>) {
     game_changer: card.game_changer,
     legalities: card.legalities
       ? { commander: (card.legalities as Record<string, string>).commander }
-      : undefined
+      : undefined,
   };
 }
 
@@ -251,20 +237,20 @@ async function handleScryfallResponse(response: Response) {
         content: [
           {
             type: "text",
-            text: `Scryfall error: ${errorObj.details} (code=${errorObj.code}, status=${errorObj.status})`
-          }
+            text: `Scryfall error: ${errorObj.details} (code=${errorObj.code}, status=${errorObj.status})`,
+          },
         ],
-        isError: true
+        isError: true,
       };
     } else {
       return {
         content: [
           {
             type: "text",
-            text: `HTTP error ${response.status}: ${response.statusText}`
-          }
+            text: `HTTP error ${response.status}: ${response.statusText}`,
+          },
         ],
-        isError: true
+        isError: true,
       };
     }
   }
@@ -274,58 +260,68 @@ async function handleScryfallResponse(response: Response) {
     content: [
       {
         type: "text",
-        text: JSON.stringify(data, null, 2)
-      }
+        text: JSON.stringify(data, null, 2),
+      },
     ],
-    isError: false
+    isError: false,
   };
 }
 
 // Actual call handlers
 async function handleSearchCards(query: string) {
   const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
-    query
+    query,
   )}`;
   const response = await fetch(url);
-  return handleScryfallResponse(response);
+  if (!response.ok) return handleScryfallResponse(response);
+  const data = (await response.json()) as {
+    data: Record<string, unknown>[];
+    [key: string]: unknown;
+  };
+  const filtered = {
+    ...data,
+    data: data.data.map(filterCardFields),
+  };
+  return {
+    content: [{ type: "text", text: JSON.stringify(filtered, null, 2) }],
+    isError: false,
+  };
 }
 
 async function handleGetCardById(id: string) {
   const url = `https://api.scryfall.com/cards/${encodeURIComponent(id)}`;
   const response = await fetch(url);
   if (!response.ok) return handleScryfallResponse(response);
-  const data = await response.json() as Record<string, unknown>;
+  const data = (await response.json()) as Record<string, unknown>;
   return {
-    content: [{ type: "text", text: JSON.stringify(filterCardFields(data), null, 2) }],
-    isError: false
+    content: [
+      { type: "text", text: JSON.stringify(filterCardFields(data), null, 2) },
+    ],
+    isError: false,
   };
 }
 
 async function handleGetCardByName(name: string) {
   // Tilde in URL means 'exact' mode for the card name
   const url = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
-    name
+    name,
   )}`;
   const response = await fetch(url);
   if (!response.ok) return handleScryfallResponse(response);
-  const data = await response.json() as Record<string, unknown>;
+  const data = (await response.json()) as Record<string, unknown>;
   return {
-    content: [{ type: "text", text: JSON.stringify(filterCardFields(data), null, 2) }],
-    isError: false
+    content: [
+      { type: "text", text: JSON.stringify(filterCardFields(data), null, 2) },
+    ],
+    isError: false,
   };
-}
-
-async function handleRandomCard() {
-  const url = "https://api.scryfall.com/cards/random";
-  const response = await fetch(url);
-  return handleScryfallResponse(response);
 }
 
 async function handleGetRulings(id: string) {
   // Scryfall docs: /cards/{id}/rulings
   // Also works with /cards/{oracle_id}/rulings
   const url = `https://api.scryfall.com/cards/${encodeURIComponent(
-    id
+    id,
   )}/rulings`;
   const response = await fetch(url);
   return handleScryfallResponse(response);
@@ -344,10 +340,10 @@ async function handleGetPricesById(id: string) {
       content: [
         {
           type: "text",
-          text: "No price information found for this card."
-        }
+          text: "No price information found for this card.",
+        },
       ],
-      isError: false
+      isError: false,
     };
   }
 
@@ -355,16 +351,16 @@ async function handleGetPricesById(id: string) {
     content: [
       {
         type: "text",
-        text: JSON.stringify(data.prices, null, 2)
-      }
+        text: JSON.stringify(data.prices, null, 2),
+      },
     ],
-    isError: false
+    isError: false,
   };
 }
 
 async function handleGetPricesByName(name: string) {
   const url = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
-    name
+    name,
   )}`;
   const response = await fetch(url);
   if (!response.ok) {
@@ -377,10 +373,10 @@ async function handleGetPricesByName(name: string) {
       content: [
         {
           type: "text",
-          text: "No price information found for this card."
-        }
+          text: "No price information found for this card.",
+        },
       ],
-      isError: false
+      isError: false,
     };
   }
 
@@ -388,10 +384,10 @@ async function handleGetPricesByName(name: string) {
     content: [
       {
         type: "text",
-        text: JSON.stringify(data.prices, null, 2)
-      }
+        text: JSON.stringify(data.prices, null, 2),
+      },
     ],
-    isError: false
+    isError: false,
   };
 }
 
@@ -400,14 +396,20 @@ async function handleGetCollection(identifiers: Record<string, unknown>[]) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifiers })
+    body: JSON.stringify({ identifiers }),
   });
   if (!response.ok) return handleScryfallResponse(response);
-  const data = await response.json() as { data: Record<string, unknown>[]; not_found: unknown[] };
-  const filtered = { data: data.data.map(filterCardFields), not_found: data.not_found };
+  const data = (await response.json()) as {
+    data: Record<string, unknown>[];
+    not_found: unknown[];
+  };
+  const filtered = {
+    data: data.data.map(filterCardFields),
+    not_found: data.not_found,
+  };
   return {
     content: [{ type: "text", text: JSON.stringify(filtered, null, 2) }],
-    isError: false
+    isError: false,
   };
 }
 
@@ -422,18 +424,18 @@ function createScryfallServer() {
   const newServer = new Server(
     {
       name: "mcp-server/scryfall",
-      version: "0.1.0"
+      version: "0.1.0",
     },
     {
       capabilities: {
-        tools: {}
-      }
-    }
+        tools: {},
+      },
+    },
   );
 
   // Set up our request handlers
   newServer.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: SCRYFALL_TOOLS
+    tools: SCRYFALL_TOOLS,
   }));
 
   newServer.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -451,9 +453,6 @@ function createScryfallServer() {
         case "get_card_by_name": {
           const { name } = args as { name: string };
           return await handleGetCardByName(name);
-        }
-        case "random_card": {
-          return await handleRandomCard();
         }
         case "get_rulings": {
           const { id } = args as { id: string };
@@ -478,10 +477,10 @@ function createScryfallServer() {
             content: [
               {
                 type: "text",
-                text: `Error: Unknown tool name "${name}"`
-              }
+                text: `Error: Unknown tool name "${name}"`,
+              },
             ],
-            isError: true
+            isError: true,
           };
       }
     } catch (err) {
@@ -489,10 +488,10 @@ function createScryfallServer() {
         content: [
           {
             type: "text",
-            text: `Error: ${(err as Error).message}`
-          }
+            text: `Error: ${(err as Error).message}`,
+          },
         ],
-        isError: true
+        isError: true,
       };
     }
   });
@@ -506,12 +505,12 @@ async function runServer() {
     .option("sse", {
       type: "boolean",
       description: "Use SSE transport instead of stdio",
-      default: false
+      default: false,
     })
     .option("port", {
       type: "number",
       description: "Port to use for SSE transport",
-      default: 3000
+      default: 3000,
     })
     .help().argv;
 
@@ -528,7 +527,7 @@ async function runServer() {
           // Store them in our map for routing POSTs
           transportsBySession.set(transport.sessionId, {
             transport,
-            server: scryfallServer
+            server: scryfallServer,
           });
 
           // Set SSE headers
@@ -543,7 +542,7 @@ async function runServer() {
           });
 
           console.error(
-            `New SSE connection established (session: ${transport.sessionId})`
+            `New SSE connection established (session: ${transport.sessionId})`,
           );
 
           // Return here - the response will be kept open for SSE
@@ -567,12 +566,12 @@ async function runServer() {
           res.end();
           return;
         }
-      }
+      },
     );
 
     httpServer.listen(argv.port, () => {
       console.error(
-        `Scryfall MCP Server listening on http://localhost:${argv.port}`
+        `Scryfall MCP Server listening on http://localhost:${argv.port}`,
       );
     });
   } else {
