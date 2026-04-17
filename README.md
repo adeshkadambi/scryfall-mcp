@@ -7,19 +7,21 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for in
 ## Features
 
 - **search_cards**  
-  Perform a text-based search on Scryfall. Returns a list of matching cards.
+  Perform a text-based search on Scryfall using a full query string (e.g. `t:goblin pow=2 o:haste`). Returns a list of matching cards with basic fields (name, set, collector number, ID).
 - **get_card_by_id**  
-  Retrieve a card directly via its Scryfall UUID.
+  Retrieve a card by its Scryfall UUID. Returns key fields: name, mana cost, type line, oracle text, power, toughness, color identity, game changer status, and Commander legality.
 - **get_card_by_name**  
-  Retrieve a card by exact English name.
+  Retrieve a card by its exact English name. Returns the same filtered fields as `get_card_by_id`.
 - **random_card**  
-  Get a random card from the entire Scryfall database.
+  Get a random card from the entire Scryfall database. Returns the full card data in JSON.
 - **get_rulings**  
-  Retrieve official rulings for a card, which may clarify card interactions or rules.
+  Retrieve official rulings for a card by its Scryfall ID or Oracle ID. Each ruling includes a `published_at` date and a `comment` explaining the ruling.
 - **get_prices_by_id**  
-  Retrieve current pricing information (USD, USD foil, EUR, TIX) for a given card by Scryfall ID.
+  Retrieve current pricing information (USD, USD foil, EUR, TIX, and more) for a given card by Scryfall ID.
 - **get_prices_by_name**  
-  Retrieve current pricing information (USD, USD foil, EUR, TIX) for a given card by exact name.
+  Retrieve current pricing information (USD, USD foil, EUR, TIX, and more) for a given card by exact name.
+- **get_collection**  
+  Retrieve a batch of up to 75 cards in a single request by providing an array of identifiers. Each identifier can be a Scryfall `id`, card `name`, `name` + `set`, `collector_number` + `set`, `mtgo_id`, `multiverse_id`, `oracle_id`, or `illustration_id`. Returns the matched cards with filtered fields and a `not_found` list for any unresolved identifiers.
 
 ## Usage
 
